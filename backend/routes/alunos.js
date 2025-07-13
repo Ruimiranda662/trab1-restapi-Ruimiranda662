@@ -1,3 +1,8 @@
+const express = require('express');
+const router = express.Router(); // Esta linha estava faltando
+const Aluno = require('../models/Aluno');
+
+// Rota POST para criar aluno
 router.post('/', async (req, res) => {
   try {
     const { nome, apelido, curso, anoCurricular } = req.body;
@@ -26,3 +31,15 @@ router.post('/', async (req, res) => {
     });
   }
 });
+
+// Adicione também as outras rotas (GET, PUT, DELETE)
+router.get('/', async (req, res) => {
+  try {
+    const alunos = await Aluno.find().populate('curso');
+    res.json({ success: true, data: alunos });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+module.exports = router;
