@@ -13,10 +13,6 @@ app.use(express.json());
 // Rota para alunos
 app.use('/api/alunos', alunosRouter);
 
-// Conexão à base de dados
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log('✅ Ligado ao MongoDB Atlas');
-    app.listen(PORT, () => console.log(`🚀 Servidor a correr em http://localhost:${PORT}`));
-  })
-  .catch(err => console.error('❌ Erro na ligação à base de dados:', err));
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('✅ Conectado ao MongoDB Atlas | Banco: escola | Coleção: alunos'))
+  .catch(err => console.error('❌ Erro na conexão:', err));

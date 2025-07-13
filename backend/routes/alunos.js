@@ -1,16 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const Aluno = require('../models/Aluno');
+const Aluno = require('../models/Aluno'); // Ajuste o caminho conforme sua estrutura
 
-router.get('/', async (req, res) => {
-  const alunos = await Aluno.find();
-  res.json(alunos);
-});
-
+// Rota POST para criar aluno
 router.post('/', async (req, res) => {
-  const novo = new Aluno(req.body);
-  await novo.save();
-  res.status(201).json(novo);
+  try {
+    const aluno = new Aluno(req.body);
+    await aluno.save();
+    res.status(201).send(aluno);
+  } catch (err) {
+    res.status(400).send(err);
+  }
 });
 
 module.exports = router;
