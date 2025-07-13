@@ -1,20 +1,11 @@
 {
-  "info": {
-    "name": "Trabalho API Alunos",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
+  "info": { "name": "API Alunos", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
   "item": [
     {
       "name": "GET Alunos",
       "request": {
         "method": "GET",
-        "url": {
-          "raw": "http://localhost:3000/alunos",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "3000",
-          "path": ["alunos"]
-        }
+        "url": { "raw": "http://localhost:3000/api/alunos" }
       }
     }
   ]

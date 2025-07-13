@@ -1,63 +1,13 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão de Alunos</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        form { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
-        input, select { margin: 5px 0; padding: 8px; width: 100%; }
-        button { padding: 8px 15px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
-        button:hover { background-color: #45a049; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Gestão de Alunos</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Gestão de Alunos</h1>
-    
-    <h2>Lista de Alunos</h2>
-    <table id="alunosTable">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Nome</th>
-                <th>Apelido</th>
-                <th>Curso</th>
-                <th>Ano Curricular</th>
-                <th>Ações</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-    
-    <h2>Adicionar/Editar Aluno</h2>
-    <form id="alunoForm">
-        <input type="hidden" id="alunoId">
-        <label for="nome">Nome:</label>
-        <input type="text" id="nome" required>
-        
-        <label for="apelido">Apelido:</label>
-        <input type="text" id="apelido" required>
-        
-        <label for="curso">Curso:</label>
-        <select id="curso" required></select>
-        
-        <label for="anoCurricular">Ano Curricular:</label>
-        <select id="anoCurricular" required>
-            <option value="1">1º Ano</option>
-            <option value="2">2º Ano</option>
-            <option value="3">3º Ano</option>
-            <option value="4">4º Ano</option>
-            <option value="5">5º Ano</option>
-        </select>
-        
-        <button type="submit">Guardar</button>
-        <button type="button" id="cancelBtn" style="background-color: #f44336;">Cancelar</button>
-    </form>
-
-    <script src="app.js"></script>
+  <h1>Alunos</h1>
+  <ul id="lista-alunos"></ul>
+  <script src="script.js"></script>
 </body>
 </html>

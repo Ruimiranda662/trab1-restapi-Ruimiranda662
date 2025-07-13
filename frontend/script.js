@@ -1,28 +1,13 @@
-const baseURL = "http://localhost:3000/alunos";
+const API_URL = "https://trab1-restapi-ruimiranda662.onrender.com";
 
 async function carregarAlunos() {
-  const res = await fetch(baseURL);
-  const alunos = await res.json();
-  const container = document.getElementById("alunos-container");
-  container.innerHTML = alunos.map(a => 
-    `<p>${a.nome} ${a.apelido} - ${a.curso} (Ano ${a.anoCurricular})</p>`
-  ).join('');
+  const res = await fetch(API_URL);
+  const dados = await res.json();
+  const lista = document.getElementById("lista-alunos");
+
+  lista.innerHTML = dados.map(aluno => `
+    <li>${aluno.nome} ${aluno.apelido} (${aluno.curso} - ${aluno.anoCurricular}º)</li>
+  `).join("");
 }
 
-document.getElementById("add-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const nome = document.getElementById("nome").value;
-  const apelido = document.getElementById("apelido").value;
-  const curso = document.getElementById("curso").value;
-  const anoCurricular = parseInt(document.getElementById("anoCurricular").value);
-
-  await fetch(baseURL, {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ nome, apelido, curso, anoCurricular })
-  });
-
-  carregarAlunos();
-});
-
-window.onload = carregarAlunos;
+carregarAlunos();
