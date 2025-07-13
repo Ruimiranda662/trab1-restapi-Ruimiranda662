@@ -3,7 +3,7 @@
 **Aluno:** Rui Miranda nº31803
 
 ## 🔗 Links
-- Frontend (Vercel): https://teu-front.vercel.app
+- Frontend (Vercel): [https://teu-front.vercel.app](https://trab1-restapi-ruimiranda662-5w31.vercel.app/)
 - Backend (Render): https://trab1-restapi-ruimiranda662.onrender.com
 
 ## 🚀 Como correr localmente
