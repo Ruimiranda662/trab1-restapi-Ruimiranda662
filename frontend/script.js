@@ -1,57 +1,80 @@
 const API_URL = "https://trab1-restapi-ruimiranda662.onrender.com";
 let editingId = null;
 
-// Cache de elementos DOM
-const DOM = {
+// Elementos DOM
+const elements = {
   form: document.getElementById('alunoForm'),
-  nomeInput: document.getElementById('nome'),
-  apelidoInput: document.getElementById('apelido'),
-  cursoSelect: document.getElementById('curso'),
-  anoSelect: document.getElementById('anoCurricular'),
+  nome: document.getElementById('nome'),
+  apelido: document.getElementById('apelido'),
+  curso: document.getElementById('curso'),
+  ano: document.getElementById('anoCurricular'),
   tableBody: document.querySelector('#alunosTable tbody'),
   cancelBtn: document.getElementById('cancelBtn'),
-  loadingOverlay: document.getElementById('loading-overlay'),
-  alertContainer: document.getElementById('alert-container')
+  loading: document.getElementById('loading-overlay'),
+  alerts: document.getElementById('alert-container')
 };
 
-// Constantes
-const DEFAULT_COURSE_OPTION = '<option value="">Selecione um curso</option>';
-const ALERT_DISPLAY_TIME = 5000; // 5 segundos
-
 // Inicialização
-document.addEventListener('DOMContentLoaded', initializeApp);
+document.addEventListener('DOMContentLoaded', () => {
+  initApp();
+});
 
-async function initializeApp() {
+async function initApp() {
   try {
-    await Promise.all([loadCourses(), loadStudents()]);
+    await loadCourses();
+    await loadStudents();
     setupEventListeners();
   } catch (error) {
-    console.error('Erro na inicialização:', error);
-    showAlert('Falha ao carregar dados iniciais', 'error');
+    showAlert('Falha ao inicializar aplicação', 'error');
+    console.error(error);
   }
 }
 
-// ==================== FUNÇÕES DE CARREGAMENTO ====================
+// ================ FUNÇÕES PRINCIPAIS ================
+
+async function saveStudent(formData) {
+  const url = editingId ? `${API_URL}/api/alunos/${editingId}` : `${API_URL}/api/alunos`;
+  const method = editingId ? 'PUT' : 'POST';
+
+  const response = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData)
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Erro ao salvar aluno');
+  }
+
+  return await response.json();
+}
+
+async function deleteStudent(id) {
+  const response = await fetch(`${API_URL}/api/alunos/${id}`, {
+    method: 'DELETE'
+  });
+
+  if (!response.ok) {
+    throw new Error('Erro ao excluir aluno');
+  }
+}
+
+// ================ FUNÇÕES AUXILIARES ================
 
 async function loadCourses() {
   try {
-    showLoading(true, 'Carregando cursos...');
+    showLoading(true);
+    const response = await fetch(`${API_URL}/api/cursos`);
     
-    const response = await fetchWithTimeout(`${API_URL}/api/cursos`, {
-      timeout: 5000
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status} - ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error('Erro ao carregar cursos');
     
     const cursos = await response.json();
-    renderCourseOptions(cursos);
-    
+    renderCourses(cursos);
   } catch (error) {
-    console.error('Erro ao carregar cursos:', error);
-    showAlert('Erro ao carregar cursos. Usando dados locais...', 'warning');
-    renderCourseOptions(getFallbackCourses());
+    console.error(error);
+    showAlert('Erro ao carregar cursos', 'error');
+    renderCourses(getFallbackCourses());
   } finally {
     showLoading(false);
   }
@@ -59,51 +82,34 @@ async function loadCourses() {
 
 async function loadStudents() {
   try {
-    showLoading(true, 'Carregando alunos...');
+    showLoading(true);
+    const response = await fetch(`${API_URL}/api/alunos`);
     
-    const response = await fetchWithTimeout(`${API_URL}/api/alunos`, {
-      timeout: 5000
-    });
-    
-    if (!response.ok) throw new Error('Falha ao carregar alunos');
+    if (!response.ok) throw new Error('Erro ao carregar alunos');
     
     const alunos = await response.json();
     renderStudents(alunos);
-    
   } catch (error) {
-    console.error('Erro ao carregar alunos:', error);
-    showAlert('Erro ao carregar lista de alunos', 'error');
+    console.error(error);
+    showAlert('Erro ao carregar alunos', 'error');
   } finally {
     showLoading(false);
   }
 }
 
-// ==================== FUNÇÕES DE RENDERIZAÇÃO ====================
-
-function renderCourseOptions(cursos) {
-  DOM.cursoSelect.innerHTML = DEFAULT_COURSE_OPTION;
+function renderCourses(cursos) {
+  elements.curso.innerHTML = '<option value="">Selecione um curso</option>';
   
-  if (!cursos || cursos.length === 0) {
-    DOM.cursoSelect.innerHTML = '<option value="">Nenhum curso disponível</option>';
-    return;
-  }
-
   cursos.forEach(curso => {
     const option = document.createElement('option');
     option.value = curso._id;
-    option.textContent = `${curso.nome} (${curso.codigo})`;
-    option.dataset.codigo = curso.codigo;
-    DOM.cursoSelect.appendChild(option);
+    option.textContent = curso.nome;
+    elements.curso.appendChild(option);
   });
 }
 
 function renderStudents(alunos) {
-  if (!alunos || alunos.length === 0) {
-    DOM.tableBody.innerHTML = '<tr><td colspan="6">Nenhum aluno cadastrado</td></tr>';
-    return;
-  }
-
-  DOM.tableBody.innerHTML = alunos.map(aluno => `
+  elements.tableBody.innerHTML = alunos.map(aluno => `
     <tr data-id="${aluno._id}">
       <td>${aluno._id}</td>
       <td>${aluno.nome}</td>
@@ -111,73 +117,123 @@ function renderStudents(alunos) {
       <td>${getCourseName(aluno.curso)}</td>
       <td>${aluno.anoCurricular}º</td>
       <td class="actions">
-        <button class="edit-btn" aria-label="Editar aluno">Editar</button>
-        <button class="delete-btn" aria-label="Excluir aluno">Excluir</button>
+        <button class="edit-btn">Editar</button>
+        <button class="delete-btn">Excluir</button>
       </td>
     </tr>
   `).join('');
 }
 
 function getCourseName(courseId) {
-  if (!courseId) return 'N/A';
-  const option = DOM.cursoSelect.querySelector(`option[value="${courseId}"]`);
-  return option ? option.textContent.split(' (')[0] : 'Curso não encontrado';
+  const option = elements.curso.querySelector(`option[value="${courseId}"]`);
+  return option ? option.textContent : 'N/A';
 }
 
-// ==================== FUNÇÕES DE FORMULÁRIO ====================
+// ================ MANIPULAÇÃO DE EVENTOS ================
+
+function setupEventListeners() {
+  elements.form.addEventListener('submit', handleSubmit);
+  elements.cancelBtn.addEventListener('click', resetForm);
+  elements.tableBody.addEventListener('click', handleTableClick);
+}
 
 async function handleSubmit(e) {
   e.preventDefault();
   
   const formData = {
-    nome: DOM.nomeInput.value.trim(),
-    apelido: DOM.apelidoInput.value.trim(),
-    curso: DOM.cursoSelect.value,
-    anoCurricular: DOM.anoSelect.value
+    nome: elements.nome.value.trim(),
+    apelido: elements.apelido.value.trim(),
+    curso: elements.curso.value,
+    anoCurricular: elements.ano.value
   };
 
   if (!validateForm(formData)) return;
 
   try {
-    showLoading(true, 'Salvando dados...');
-    
-    const url = editingId ? `${API_URL}/api/alunos/${editingId}` : `${API_URL}/api/alunos`;
-    const method = editingId ? 'PUT' : 'POST';
-
-    const response = await fetchWithTimeout(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
-      timeout: 8000
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Falha na requisição');
-    }
-
-    resetForm();
+    showLoading(true);
+    await saveStudent(formData);
     await loadStudents();
-    showAlert(`Aluno ${editingId ? 'atualizado' : 'cadastrado'} com sucesso!`, 'success');
-    editingId = null;
-    
+    showAlert(`Aluno ${editingId ? 'atualizado' : 'adicionado'} com sucesso!`, 'success');
+    resetForm();
   } catch (error) {
-    console.error('Erro no formulário:', error);
-    showAlert(error.message || 'Erro ao processar formulário', 'error');
+    console.error(error);
+    showAlert(error.message, 'error');
   } finally {
     showLoading(false);
   }
 }
 
+function handleTableClick(e) {
+  const row = e.target.closest('tr');
+  if (!row) return;
+
+  const id = row.dataset.id;
+  
+  if (e.target.classList.contains('edit-btn')) {
+    editStudent(id);
+  }
+  
+  if (e.target.classList.contains('delete-btn')) {
+    deleteStudentHandler(id);
+  }
+}
+
+async function editStudent(id) {
+  try {
+    showLoading(true);
+    const response = await fetch(`${API_URL}/api/alunos/${id}`);
+    
+    if (!response.ok) throw new Error('Aluno não encontrado');
+    
+    const aluno = await response.json();
+    
+    elements.nome.value = aluno.nome;
+    elements.apelido.value = aluno.apelido;
+    elements.curso.value = aluno.curso;
+    elements.ano.value = aluno.anoCurricular;
+    
+    editingId = id;
+    elements.form.scrollIntoView();
+    
+  } catch (error) {
+    console.error(error);
+    showAlert('Erro ao carregar aluno', 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function deleteStudentHandler(id) {
+  if (!confirm('Tem certeza que deseja excluir este aluno?')) return;
+  
+  try {
+    showLoading(true);
+    await deleteStudent(id);
+    await loadStudents();
+    showAlert('Aluno excluído com sucesso!', 'success');
+  } catch (error) {
+    console.error(error);
+    showAlert('Erro ao excluir aluno', 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+// ================ FUNÇÕES UTILITÁRIAS ================
+
 function validateForm({ nome, apelido, curso }) {
-  const errors = [];
+  if (!nome) {
+    showAlert('Preencha o nome do aluno', 'error');
+    return false;
+  }
   
-  if (!nome) errors.push('Nome é obrigatório');
-  if (!apelido) errors.push('Apelido é obrigatório');
-  if (!curso) errors.push('Selecione um curso');
+  if (!apelido) {
+    showAlert('Preencha o apelido do aluno', 'error');
+    return false;
+  }
   
-  if (errors.length > 0) {
-    showAlert(errors.join('<br>'), 'error');
+  if (!curso) {
+    showAlert('Selecione um curso', 'error');
     return false;
   }
   
@@ -185,136 +241,28 @@ function validateForm({ nome, apelido, curso }) {
 }
 
 function resetForm() {
-  DOM.form.reset();
+  elements.form.reset();
   editingId = null;
-  DOM.form.scrollIntoView({ behavior: 'smooth' });
 }
 
-// ==================== FUNÇÕES DE INTERAÇÃO ====================
-
-async function handleEdit(studentId) {
-  try {
-    showLoading(true, 'Carregando aluno...');
-    
-    const response = await fetchWithTimeout(`${API_URL}/api/alunos/${studentId}`, {
-      timeout: 5000
-    });
-    
-    if (!response.ok) throw new Error('Aluno não encontrado');
-    
-    const aluno = await response.json();
-    fillForm(aluno);
-    editingId = studentId;
-    
-  } catch (error) {
-    console.error('Erro ao editar:', error);
-    showAlert('Falha ao carregar dados do aluno', 'error');
-  } finally {
-    showLoading(false);
-  }
+function showLoading(show) {
+  elements.loading.style.display = show ? 'flex' : 'none';
 }
 
-function fillForm(aluno) {
-  DOM.nomeInput.value = aluno.nome || '';
-  DOM.apelidoInput.value = aluno.apelido || '';
-  DOM.cursoSelect.value = aluno.curso || '';
-  DOM.anoSelect.value = aluno.anoCurricular || '1';
+function showAlert(message, type) {
+  const alert = document.createElement('div');
+  alert.className = `alert ${type}`;
+  alert.textContent = message;
+  elements.alerts.appendChild(alert);
   
-  // Scroll para o formulário
-  DOM.form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-async function handleDelete(studentId) {
-  if (!confirm('Tem certeza que deseja excluir este aluno permanentemente?')) {
-    return;
-  }
-
-  try {
-    showLoading(true, 'Excluindo aluno...');
-    
-    const response = await fetchWithTimeout(`${API_URL}/api/alunos/${studentId}`, {
-      method: 'DELETE',
-      timeout: 5000
-    });
-    
-    if (!response.ok) throw new Error('Falha ao excluir');
-    
-    await loadStudents();
-    showAlert('Aluno excluído com sucesso!', 'success');
-    
-  } catch (error) {
-    console.error('Erro ao excluir:', error);
-    showAlert('Falha ao excluir aluno', 'error');
-  } finally {
-    showLoading(false);
-  }
-}
-
-// ==================== UTILITÁRIOS ====================
-
-async function fetchWithTimeout(resource, options = {}) {
-  const { timeout = 8000 } = options;
-  
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-  
-  const response = await fetch(resource, {
-    ...options,
-    signal: controller.signal
-  });
-  
-  clearTimeout(id);
-  return response;
+  setTimeout(() => {
+    alert.remove();
+  }, 5000);
 }
 
 function getFallbackCourses() {
   return [
-    { _id: '1', nome: 'Engenharia de Software', codigo: 'ESOFT' },
-    { _id: '2', nome: 'Ciência da Computação', codigo: 'CCOMP' }
+    { _id: '1', nome: 'Engenharia de Software' },
+    { _id: '2', nome: 'Ciência da Computação' }
   ];
-}
-
-function showLoading(show, text = '') {
-  DOM.loadingOverlay.innerHTML = show
-    ? `<div class="loading-spinner"></div>${text ? `<p>${text}</p>` : ''}`
-    : '';
-  DOM.loadingOverlay.style.display = show ? 'flex' : 'none';
-}
-
-function showAlert(message, type = 'success') {
-  const alert = document.createElement('div');
-  alert.className = `alert alert-${type}`;
-  alert.innerHTML = message;
-  alert.setAttribute('role', 'alert');
-  
-  DOM.alertContainer.appendChild(alert);
-  
-  setTimeout(() => {
-    alert.classList.add('fade-out');
-    setTimeout(() => alert.remove(), 300);
-  }, ALERT_DISPLAY_TIME);
-}
-
-// ==================== CONFIGURAÇÃO DE EVENTOS ====================
-
-function setupEventListeners() {
-  DOM.form.addEventListener('submit', handleSubmit);
-  DOM.cancelBtn.addEventListener('click', resetForm);
-  
-  // Delegação de eventos para a tabela
-  DOM.tableBody.addEventListener('click', (e) => {
-    const row = e.target.closest('tr');
-    if (!row) return;
-    
-    const studentId = row.dataset.id;
-    if (!studentId) return;
-    
-    if (e.target.classList.contains('edit-btn')) {
-      handleEdit(studentId);
-    }
-    
-    if (e.target.classList.contains('delete-btn')) {
-      handleDelete(studentId);
-    }
-  });
 }
