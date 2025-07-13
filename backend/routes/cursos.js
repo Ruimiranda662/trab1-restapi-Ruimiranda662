@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const Curso = require('../models/Curso');
 
-// GET todos os cursos ativos
+// GET todos os cursos
 router.get('/', async (req, res) => {
   try {
-    const cursos = await Curso.findAllActive();
+    const cursos = await Curso.find().sort({ nome: 1 });
     res.json({
       success: true,
       count: cursos.length,
@@ -23,16 +23,21 @@ router.get('/', async (req, res) => {
 // POST criar novo curso
 router.post('/', async (req, res) => {
   try {
-    const { nome, codigo, descricao, duracaoAnos } = req.body;
+    const { nome, codigo } = req.body;
     
-    const novoCurso = new Curso({
-      nome,
-      codigo,
-      descricao,
-      duracaoAnos: duracaoAnos || 3
+    if (!nome || !codigo) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nome e código são obrigatórios'
+      });
+    }
+
+    const curso = new Curso({
+      nome: nome.trim(),
+      codigo: codigo.trim().toUpperCase()
     });
 
-    const cursoSalvo = await novoCurso.save();
+    const cursoSalvo = await curso.save();
     
     res.status(201).json({
       success: true,
@@ -42,17 +47,15 @@ router.post('/', async (req, res) => {
     if (err.code === 11000) {
       return res.status(400).json({
         success: false,
-        message: 'Já existe um curso com este nome ou código'
+        message: 'Curso já existe com este nome ou código'
       });
     }
-    res.status(400).json({
+    res.status(500).json({
       success: false,
       message: 'Erro ao criar curso',
       error: err.message
     });
   }
 });
-
-// Outras rotas (PUT, DELETE, GET por ID) podem ser adicionadas aqui
 
 module.exports = router;

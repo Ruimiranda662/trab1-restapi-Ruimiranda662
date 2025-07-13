@@ -1,268 +1,151 @@
 const API_URL = "https://trab1-restapi-ruimiranda662.onrender.com";
-let editingId = null;
+let alunoEditando = null;
 
 // Elementos DOM
-const elements = {
-  form: document.getElementById('alunoForm'),
-  nome: document.getElementById('nome'),
-  apelido: document.getElementById('apelido'),
-  curso: document.getElementById('curso'),
-  ano: document.getElementById('anoCurricular'),
-  tableBody: document.querySelector('#alunosTable tbody'),
-  cancelBtn: document.getElementById('cancelBtn'),
-  loading: document.getElementById('loading-overlay'),
-  alerts: document.getElementById('alert-container')
-};
+const form = document.getElementById('alunoForm');
+const tabela = document.querySelector('#alunosTable tbody');
 
 // Inicialização
-document.addEventListener('DOMContentLoaded', () => {
-  initApp();
+document.addEventListener('DOMContentLoaded', async () => {
+  await carregarCursos();
+  await carregarAlunos();
+  configurarEventos();
 });
 
-async function initApp() {
+// Carrega cursos no dropdown
+async function carregarCursos() {
   try {
-    await loadCourses();
-    await loadStudents();
-    setupEventListeners();
-  } catch (error) {
-    showAlert('Falha ao inicializar aplicação', 'error');
-    console.error(error);
-  }
-}
-
-// ================ FUNÇÕES PRINCIPAIS ================
-
-async function saveStudent(formData) {
-  const url = editingId ? `${API_URL}/api/alunos/${editingId}` : `${API_URL}/api/alunos`;
-  const method = editingId ? 'PUT' : 'POST';
-
-  const response = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(formData)
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Erro ao salvar aluno');
-  }
-
-  return await response.json();
-}
-
-async function deleteStudent(id) {
-  const response = await fetch(`${API_URL}/api/alunos/${id}`, {
-    method: 'DELETE'
-  });
-
-  if (!response.ok) {
-    throw new Error('Erro ao excluir aluno');
-  }
-}
-
-// ================ FUNÇÕES AUXILIARES ================
-
-async function loadCourses() {
-  try {
-    showLoading(true);
     const response = await fetch(`${API_URL}/api/cursos`);
-    
-    if (!response.ok) throw new Error('Erro ao carregar cursos');
-    
     const cursos = await response.json();
-    renderCourses(cursos);
+    
+    const select = document.getElementById('curso');
+    select.innerHTML = '<option value="">Selecione um curso</option>';
+    
+    cursos.forEach(curso => {
+      const option = document.createElement('option');
+      option.value = curso._id;
+      option.textContent = curso.nome;
+      select.appendChild(option);
+    });
   } catch (error) {
-    console.error(error);
-    showAlert('Erro ao carregar cursos', 'error');
-    renderCourses(getFallbackCourses());
-  } finally {
-    showLoading(false);
+    console.error('Erro ao carregar cursos:', error);
+    alert('Erro ao carregar cursos');
   }
 }
 
-async function loadStudents() {
+// Carrega alunos na tabela
+async function carregarAlunos() {
   try {
-    showLoading(true);
-    const response = await fetch(`${API_URL}/api/alunos`);
-    
-    if (!response.ok) throw new Error('Erro ao carregar alunos');
-    
+    const response = await fetch(`${API_URL}/api/alunos?populate=curso`);
     const alunos = await response.json();
-    renderStudents(alunos);
+    
+    tabela.innerHTML = alunos.map(aluno => `
+      <tr data-id="${aluno._id}">
+        <td>${aluno.nome}</td>
+        <td>${aluno.apelido}</td>
+        <td>${aluno.curso?.nome || 'N/A'}</td>
+        <td>${aluno.anoCurricular}º</td>
+        <td>
+          <button class="editar">Editar</button>
+          <button class="excluir">Excluir</button>
+        </td>
+      </tr>
+    `).join('');
   } catch (error) {
-    console.error(error);
-    showAlert('Erro ao carregar alunos', 'error');
-  } finally {
-    showLoading(false);
+    console.error('Erro ao carregar alunos:', error);
+    alert('Erro ao carregar alunos');
   }
 }
 
-function renderCourses(cursos) {
-  elements.curso.innerHTML = '<option value="">Selecione um curso</option>';
+// Configura eventos
+function configurarEventos() {
+  // Submit do formulário
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const aluno = {
+      nome: form.nome.value,
+      apelido: form.apelido.value,
+      curso: form.curso.value,
+      anoCurricular: form.anoCurricular.value
+    };
+    
+    try {
+      const url = alunoEditando 
+        ? `${API_URL}/api/alunos/${alunoEditando}` 
+        : `${API_URL}/api/alunos`;
+      
+      const method = alunoEditando ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(aluno)
+      });
+      
+      if (response.ok) {
+        form.reset();
+        alunoEditando = null;
+        await carregarAlunos();
+        alert('Aluno salvo com sucesso!');
+      }
+    } catch (error) {
+      console.error('Erro ao salvar aluno:', error);
+      alert('Erro ao salvar aluno');
+    }
+  });
   
-  cursos.forEach(curso => {
-    const option = document.createElement('option');
-    option.value = curso._id;
-    option.textContent = curso.nome;
-    elements.curso.appendChild(option);
+  // Eventos de editar/excluir
+  tabela.addEventListener('click', async (e) => {
+    const linha = e.target.closest('tr');
+    if (!linha) return;
+    
+    const id = linha.dataset.id;
+    
+    if (e.target.classList.contains('editar')) {
+      await editarAluno(id);
+    }
+    
+    if (e.target.classList.contains('excluir')) {
+      if (confirm('Tem certeza que deseja excluir este aluno?')) {
+        await excluirAluno(id);
+      }
+    }
   });
 }
 
-function renderStudents(alunos) {
-  elements.tableBody.innerHTML = alunos.map(aluno => `
-    <tr data-id="${aluno._id}">
-      <td>${aluno._id}</td>
-      <td>${aluno.nome}</td>
-      <td>${aluno.apelido}</td>
-      <td>${getCourseName(aluno.curso)}</td>
-      <td>${aluno.anoCurricular}º</td>
-      <td class="actions">
-        <button class="edit-btn">Editar</button>
-        <button class="delete-btn">Excluir</button>
-      </td>
-    </tr>
-  `).join('');
-}
-
-function getCourseName(courseId) {
-  const option = elements.curso.querySelector(`option[value="${courseId}"]`);
-  return option ? option.textContent : 'N/A';
-}
-
-// ================ MANIPULAÇÃO DE EVENTOS ================
-
-function setupEventListeners() {
-  elements.form.addEventListener('submit', handleSubmit);
-  elements.cancelBtn.addEventListener('click', resetForm);
-  elements.tableBody.addEventListener('click', handleTableClick);
-}
-
-async function handleSubmit(e) {
-  e.preventDefault();
-  
-  const formData = {
-    nome: elements.nome.value.trim(),
-    apelido: elements.apelido.value.trim(),
-    curso: elements.curso.value,
-    anoCurricular: elements.ano.value
-  };
-
-  if (!validateForm(formData)) return;
-
+// Editar aluno
+async function editarAluno(id) {
   try {
-    showLoading(true);
-    await saveStudent(formData);
-    await loadStudents();
-    showAlert(`Aluno ${editingId ? 'atualizado' : 'adicionado'} com sucesso!`, 'success');
-    resetForm();
-  } catch (error) {
-    console.error(error);
-    showAlert(error.message, 'error');
-  } finally {
-    showLoading(false);
-  }
-}
-
-function handleTableClick(e) {
-  const row = e.target.closest('tr');
-  if (!row) return;
-
-  const id = row.dataset.id;
-  
-  if (e.target.classList.contains('edit-btn')) {
-    editStudent(id);
-  }
-  
-  if (e.target.classList.contains('delete-btn')) {
-    deleteStudentHandler(id);
-  }
-}
-
-async function editStudent(id) {
-  try {
-    showLoading(true);
     const response = await fetch(`${API_URL}/api/alunos/${id}`);
-    
-    if (!response.ok) throw new Error('Aluno não encontrado');
-    
     const aluno = await response.json();
     
-    elements.nome.value = aluno.nome;
-    elements.apelido.value = aluno.apelido;
-    elements.curso.value = aluno.curso;
-    elements.ano.value = aluno.anoCurricular;
+    form.nome.value = aluno.nome;
+    form.apelido.value = aluno.apelido;
+    form.curso.value = aluno.curso?._id || '';
+    form.anoCurricular.value = aluno.anoCurricular;
     
-    editingId = id;
-    elements.form.scrollIntoView();
-    
+    alunoEditando = id;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (error) {
-    console.error(error);
-    showAlert('Erro ao carregar aluno', 'error');
-  } finally {
-    showLoading(false);
+    console.error('Erro ao editar aluno:', error);
+    alert('Erro ao carregar dados do aluno');
   }
 }
 
-async function deleteStudentHandler(id) {
-  if (!confirm('Tem certeza que deseja excluir este aluno?')) return;
-  
+// Excluir aluno
+async function excluirAluno(id) {
   try {
-    showLoading(true);
-    await deleteStudent(id);
-    await loadStudents();
-    showAlert('Aluno excluído com sucesso!', 'success');
+    const response = await fetch(`${API_URL}/api/alunos/${id}`, {
+      method: 'DELETE'
+    });
+    
+    if (response.ok) {
+      await carregarAlunos();
+      alert('Aluno excluído com sucesso!');
+    }
   } catch (error) {
-    console.error(error);
-    showAlert('Erro ao excluir aluno', 'error');
-  } finally {
-    showLoading(false);
+    console.error('Erro ao excluir aluno:', error);
+    alert('Erro ao excluir aluno');
   }
-}
-
-// ================ FUNÇÕES UTILITÁRIAS ================
-
-function validateForm({ nome, apelido, curso }) {
-  if (!nome) {
-    showAlert('Preencha o nome do aluno', 'error');
-    return false;
-  }
-  
-  if (!apelido) {
-    showAlert('Preencha o apelido do aluno', 'error');
-    return false;
-  }
-  
-  if (!curso) {
-    showAlert('Selecione um curso', 'error');
-    return false;
-  }
-  
-  return true;
-}
-
-function resetForm() {
-  elements.form.reset();
-  editingId = null;
-}
-
-function showLoading(show) {
-  elements.loading.style.display = show ? 'flex' : 'none';
-}
-
-function showAlert(message, type) {
-  const alert = document.createElement('div');
-  alert.className = `alert ${type}`;
-  alert.textContent = message;
-  elements.alerts.appendChild(alert);
-  
-  setTimeout(() => {
-    alert.remove();
-  }, 5000);
-}
-
-function getFallbackCourses() {
-  return [
-    { _id: '1', nome: 'Engenharia de Software' },
-    { _id: '2', nome: 'Ciência da Computação' }
-  ];
 }
