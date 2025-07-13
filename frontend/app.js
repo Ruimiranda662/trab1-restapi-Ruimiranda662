@@ -1,42 +1,59 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Elementos DOM
     const alunosTable = document.querySelector('#alunosTable tbody');
     const alunoForm = document.getElementById('alunoForm');
     const cancelBtn = document.getElementById('cancelBtn');
     const cursoSelect = document.getElementById('curso');
     
-    // ✅ URL do backend no Render
-    const API_URL = 'https://trab1-restapi-ruimiranda662.onrender.com';
+    // Configurações
+    const API_URL = import.meta.env.VITE_API_URL || 'https://trab1-restapi-ruimiranda662.onrender.com';
     let editingId = null;
-    
-    // Carregar cursos
-    async function loadCursos() {
+
+    // Helpers
+    const showError = (message) => {
+        alert(`Erro: ${message}`);
+        console.error(message);
+    };
+
+    // API Functions
+    const fetchData = async (endpoint, options = {}) => {
         try {
-            const response = await fetch(`${API_URL}/cursos`);
-            const cursos = await response.json();
-            
-            cursoSelect.innerHTML = '';
-            cursos.forEach(curso => {
-                const option = document.createElement('option');
-                option.value = curso.nomeDoCurso;
-                option.textContent = curso.nomeDoCurso;
-                cursoSelect.appendChild(option);
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                ...options
             });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
         } catch (error) {
-            console.error('Erro ao carregar cursos:', error);
+            showError(`Falha na requisição: ${error.message}`);
+            throw error;
         }
-    }
-    
-    // Carregar alunos
-    async function loadAlunos() {
+    };
+
+    // Carregar cursos
+    const loadCursos = async () => {
         try {
-            const response = await fetch(`${API_URL}/alunos`);
-            const alunos = await response.json();
-            
-            alunosTable.innerHTML = '';
-            alunos.forEach(aluno => {
-                const row = document.createElement('tr');
-                
-                row.innerHTML = `
+            const cursos = await fetchData('/cursos');
+            cursoSelect.innerHTML = cursos.map(curso => 
+                `<option value="${curso.nomeDoCurso}">${curso.nomeDoCurso}</option>`
+            ).join('');
+        } catch (error) {
+            showError('Falha ao carregar cursos');
+        }
+    };
+
+    // Carregar alunos
+    const loadAlunos = async () => {
+        try {
+            const alunos = await fetchData('/alunos');
+            alunosTable.innerHTML = alunos.map(aluno => `
+                <tr>
                     <td>${aluno.id}</td>
                     <td>${aluno.nome}</td>
                     <td>${aluno.apelido}</td>
@@ -44,97 +61,81 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${aluno.anoCurricular}º Ano</td>
                     <td>
                         <button onclick="editAluno('${aluno.id}')">Editar</button>
-                        <button onclick="deleteAluno('${aluno.id}')" style="background-color: #f44336;">Apagar</button>
+                        <button onclick="deleteAluno('${aluno.id}')" class="delete-btn">Apagar</button>
                     </td>
-                `;
-                
-                alunosTable.appendChild(row);
-            });
+                </tr>
+            `).join('');
         } catch (error) {
-            console.error('Erro ao carregar alunos:', error);
+            showError('Falha ao carregar alunos');
         }
-    }
-    
+    };
+
     // Formulário submit
-    alunoForm.addEventListener('submit', async function(e) {
+    alunoForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         
+        const formData = new FormData(alunoForm);
         const alunoData = {
-            nome: document.getElementById('nome').value,
-            apelido: document.getElementById('apelido').value,
-            curso: document.getElementById('curso').value,
-            anoCurricular: parseInt(document.getElementById('anoCurricular').value)
+            nome: formData.get('nome'),
+            apelido: formData.get('apelido'),
+            curso: formData.get('curso'),
+            anoCurricular: parseInt(formData.get('anoCurricular'))
         };
-        
+
         try {
             if (editingId) {
-                // Atualizar aluno existente
-                await fetch(`${API_URL}/alunos/${editingId}`, {
+                await fetchData(`/alunos/${editingId}`, {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify(alunoData)
                 });
             } else {
-                // Criar novo aluno
-                await fetch(`${API_URL}/alunos`, {
+                await fetchData('/alunos', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify(alunoData)
                 });
             }
             
             resetForm();
-            loadAlunos();
+            await loadAlunos();
         } catch (error) {
-            console.error('Erro ao salvar aluno:', error);
-            alert('Erro ao salvar aluno. Verifique o console.');
+            showError('Falha ao salvar aluno');
         }
     });
-    
-    // Botão cancelar
-    cancelBtn.addEventListener('click', resetForm);
-    
+
     // Funções globais
-    window.editAluno = async function(id) {
+    window.editAluno = async (id) => {
         try {
-            const response = await fetch(`${API_URL}/alunos/${id}`);
-            const aluno = await response.json();
-            
+            const aluno = await fetchData(`/alunos/${id}`);
+            editingId = aluno.id;
             document.getElementById('alunoId').value = aluno.id;
             document.getElementById('nome').value = aluno.nome;
             document.getElementById('apelido').value = aluno.apelido;
             document.getElementById('curso').value = aluno.curso;
             document.getElementById('anoCurricular').value = aluno.anoCurricular;
-            
-            editingId = aluno.id;
         } catch (error) {
-            console.error('Erro ao carregar aluno:', error);
+            showError('Falha ao carregar aluno');
         }
     };
-    
-    window.deleteAluno = async function(id) {
+
+    window.deleteAluno = async (id) => {
         if (confirm('Tem certeza que deseja apagar este aluno?')) {
             try {
-                await fetch(`${API_URL}/alunos/${id}`, {
-                    method: 'DELETE'
-                });
-                loadAlunos();
+                await fetchData(`/alunos/${id}`, { method: 'DELETE' });
+                await loadAlunos();
             } catch (error) {
-                console.error('Erro ao apagar aluno:', error);
+                showError('Falha ao apagar aluno');
             }
         }
     };
-    
-    function resetForm() {
+
+    // Funções auxiliares
+    const resetForm = () => {
         alunoForm.reset();
-        document.getElementById('alunoId').value = '';
         editingId = null;
-    }
-    
+    };
+
+    cancelBtn.addEventListener('click', resetForm);
+
     // Inicialização
     loadCursos();
     loadAlunos();

@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://trab1-restapi-ruimiranda662.onrender.com/api/$1"
+    }
+  ]
+}
